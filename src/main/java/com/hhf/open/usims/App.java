@@ -5,11 +5,15 @@ import static com.hhf.open.usims.UsimsAssert.assertNotEmpty;
 
 /**
  * at windows C:/Users/Administrator/.usims/usims.properties file as
- * jdbc.driver=com.mysql.jdbc.Driver
- * jdbc.url=jdbc:mysql://xxx.xxx.xxx.xxx/usims_data?useUnicode=true&characterEncoding=utf-8&autoReconnect=true
- * jdbc.username=
- * jdbc.password=
- * domain.urls=http://www.yourdomain.com/contract/
+ * usims.properties:
+ *   jdbc.driver=com.mysql.jdbc.Driver
+ *   jdbc.url=jdbc:mysql://xxx.xxx.xxx.xxx/usims_data?useUnicode=true&characterEncoding=utf-8&autoReconnect=true
+ *   jdbc.username=
+ *   jdbc.password=
+ *   urls.file=C:/Users/Administrator/.usims/urls.txt
+ *
+ * urls.txt
+ *  http://www.yoursite.com/
  *
  * build a table in the mysql database
  *  run sql script:

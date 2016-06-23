@@ -45,41 +45,51 @@ public class LoaderCrawler extends BreadthCrawler {
 
     public void visit(Page page, Links links) {
         String url = page.getUrl();
-        pool.loaded(url);
-        System.out.println("Visit:---->" + url);
+        try {
+            pool.loaded(url);
 
-        if (Pattern.matches(".*aspx", url)) {
-            Document doc = page.getDoc();
-            Elements el = doc.select("div[class=l-t-list]");
-            if(el!=null && el.size()>0)
-            {
-                String content = el.first().html();
-                content = content.replaceAll("<br/>", "\n").replaceAll("<br />", "\n");
-                content = htmlRemoveTag(content);
+            System.out.println("Visit:---->" + url);
+
+            if (Pattern.matches(".*aspx", url)) {
+                Document doc = page.getDoc();
+                Elements el = doc.select("div[class=l-t-list]");
+                if(el!=null && el.size()>0)
+                {
+                    String content = el.first().html();
+                    content = content.replaceAll("<br/>", "\n").replaceAll("<br />", "\n");
+                    content = htmlRemoveTag(content);
 //        System.out.println("content:" + content);
-                if (!pool.isLoaded(url)) {
-                    pool.setData(url, content);
+                    if (!pool.isLoaded(url)) {
+                        pool.setData(url, content);
+                    }
                 }
             }
-        }
 
-        long count = pool.getDataCount();
-        System.out.println("------- Visit:"  + count);
-        if(count>10000){
-            System.out.println("----------------------------- DONE ----------------------------" );
-            System.exit(0);
-        }
+            long count = pool.getDataCount();
+            System.out.println("------- Visit:"  + count);
+            if(count>10000){
+                System.out.println("----------------------------- DONE ----------------------------" );
+                System.exit(0);
+            }
 
 
-        String text = page.getDoc().select("a").toString();
-        System.out.println(text);
-        List<String> urls = find(text);
-        if(urls.size()>0){
-            for(String u : urls){
-                if(!pool.isLoaded(u)) {
-                    links.add(u);
+            String text = page.getDoc().select("a").toString();
+            //System.out.println(text);
+            List<String> urls = find(text);
+            if(urls.size()>0){
+                for(String u : urls){
+                    if(!pool.isLoaded(u)) {
+                        links.add(u);
+                    }
                 }
             }
+
+        } catch (SQLException e) {
+            e.printStackTrace();
+            System.exit(-1);
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
+            System.exit(-1);
         }
     }
 

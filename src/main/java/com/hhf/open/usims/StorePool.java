@@ -17,18 +17,11 @@ public class StorePool {
 
 
 
-    public void loaded(String url){
-        if(!isLoaded(url)) {
+    public void loaded(String url) throws SQLException, ClassNotFoundException {
             String sql = "insert usims_loaded(id, url) values(?,?)";
             String id = encode(url);
-            try {
-                update(sql, new String[]{id, url});
-            } catch (SQLException e) {
-                e.printStackTrace();
-            } catch (ClassNotFoundException e) {
-                e.printStackTrace();
-            }
-        }
+          update(sql, new String[]{id, url});
+
     }
 
 
@@ -97,11 +90,10 @@ public class StorePool {
                 p.close();
                 p = null;
             }
-            catch (SQLException e)
-            {
-                e.printStackTrace();
+            finally {
+                closeDbAll(c, p, null);
             }
-            closeDbAll(c, p, null);
+
         }
         return num;// 返回影响行数
     }

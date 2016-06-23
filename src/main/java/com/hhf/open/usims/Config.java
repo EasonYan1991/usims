@@ -15,24 +15,26 @@ public class Config {
 
     static {
         prop = new Properties();
+        urls = new Properties();
         init();
     }
     private final static Properties prop;
+    private final static Properties urls;
 
     public  static String[] getUrls(){
-        String urls = (String)prop.get("domain.urls");
 
+        String[] ret = new String[urls.size()];
         if(urls!=null) {
-          return new String[]{urls};
-//            Enumeration enums = prop.keys();
-//            int i=0;
-//            while (enums.hasMoreElements()) {
-//                Object key = enums.nextElement();
-//                ret[i++] = (String) prop.get(key);
-//            }
+
+            Enumeration enums = urls.keys();
+            int i=0;
+            while (enums.hasMoreElements()) {
+                Object key = enums.nextElement();
+                ret[i++] = (String) urls.get(key);
+            }
 
         }
-        return new String[0];
+        return ret;
     }
 
     /**
@@ -41,7 +43,10 @@ public class Config {
      * jdbc.url=jdbc:mysql://xxx.xxx.xxx.xxx/usims_data?useUnicode=true&characterEncoding=utf-8&autoReconnect=true
      * jdbc.username=
      * jdbc.password=
-     * domain.urls=http://www.yourdomain.com/contract/
+     * urls.file=C:/Users/Administrator/.usims/urls.txt
+     *
+     * urls.txt
+     *
      */
     private static void init(){
         File file = new File(System.getProperty("user.home") + "/.usims/usims.properties");
@@ -49,13 +54,14 @@ public class Config {
             if(file.exists()){
                 prop.load(new FileInputStream(file));
             }
-
-//            BufferedReader br = new BufferedReader(new FileReader(file));
-//            String line;
-//            while ((line = br.readLine()) != null) {
-//                // process the line.
-//                prop.put(line, line);
-//            }
+            String urlsFile  = (String) prop.get("urls.file");
+            File f = new File(urlsFile);
+            BufferedReader br = new BufferedReader(new FileReader(f));
+            String line;
+            while ((line = br.readLine()) != null) {
+                // process the line.
+                urls.put(line, line);
+            }
         }
 
         catch (Exception ex){
