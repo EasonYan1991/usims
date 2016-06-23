@@ -17,6 +17,22 @@ public class StorePool {
 
 
 
+    public void loaded(String url){
+        if(!isLoaded(url)) {
+            String sql = "insert usims_loaded(id, url) values(?,?)";
+            String id = encode(url);
+            try {
+                update(sql, new String[]{id, url});
+            } catch (SQLException e) {
+                e.printStackTrace();
+            } catch (ClassNotFoundException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+
+
     public void setData(String url, String content){
         String sql = "insert usims_data(id, url, content) values(?,?,?)";
         String id = encode(url);
@@ -32,7 +48,7 @@ public class StorePool {
     public boolean isLoaded(String url){
         String id = encode(url);
         try {
-            List list = findList("select count(1) as rs from usims_data where id ='"+ id+"'");
+            List list = findList("select count(1) as rs from usims_loaded where id ='"+ id+"'");
             return list !=null && list.size()>0 && (((Long)((Map)list.get(0)).get("rs"))>0);
         } catch (SQLException e) {
             e.printStackTrace();

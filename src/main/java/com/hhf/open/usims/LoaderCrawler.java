@@ -4,8 +4,13 @@ import cn.edu.hfut.dmic.webcollector.crawler.BreadthCrawler;
 import cn.edu.hfut.dmic.webcollector.model.Links;
 import cn.edu.hfut.dmic.webcollector.model.Page;
 import org.jsoup.nodes.Document;
+import org.jsoup.nodes.Element;
+import org.jsoup.select.Elements;
 
 import java.sql.SQLException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 /**
@@ -40,16 +45,21 @@ public class LoaderCrawler extends BreadthCrawler {
 
     public void visit(Page page, Links links) {
         String url = page.getUrl();
+        pool.loaded(url);
         System.out.println("Visit:---->" + url);
+
         if (Pattern.matches(".*aspx", url)) {
             Document doc = page.getDoc();
-            String content = doc.select("div[class=l-t-list]").first().html();
-        content = content.replaceAll("<br/>","\n").replaceAll("<br />", "\n");
-        content = htmlRemoveTag(content);
+            Elements el = doc.select("div[class=l-t-list]");
+            if(el!=null && el.size()>0)
+            {
+                String content = el.first().html();
+                content = content.replaceAll("<br/>", "\n").replaceAll("<br />", "\n");
+                content = htmlRemoveTag(content);
 //        System.out.println("content:" + content);
-//        System.out.println("Visit:---------------------------------------------------------" );
-            if(!pool.isLoaded(url)) {
-                pool.setData(url, content);
+                if (!pool.isLoaded(url)) {
+                    pool.setData(url, content);
+                }
             }
         }
 
@@ -58,6 +68,18 @@ public class LoaderCrawler extends BreadthCrawler {
         if(count>10000){
             System.out.println("----------------------------- DONE ----------------------------" );
             System.exit(0);
+        }
+
+
+        String text = page.getDoc().select("a").toString();
+        System.out.println(text);
+        List<String> urls = find(text);
+        if(urls.size()>0){
+            for(String u : urls){
+                if(!pool.isLoaded(u)) {
+                    links.add(u);
+                }
+            }
         }
     }
 
@@ -92,6 +114,21 @@ public class LoaderCrawler extends BreadthCrawler {
             e.printStackTrace();
         }
         return textStr;// 返回文本字符串
+    }
+
+    public List<String> find(String text){
+        List list = new ArrayList();
+//        String pattern= "^http\:\/\/.+$";
+        String pattern = "http.*aspx";
+        Pattern p = Pattern.compile(pattern);
+        Matcher m = p.matcher(text);
+        String s;
+        while(m.find()) {
+            s = m.group();
+           // System.out.println("url="+s);
+            list.add(s);
+        }
+        return list;
     }
 }
 
