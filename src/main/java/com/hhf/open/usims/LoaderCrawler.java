@@ -5,43 +5,63 @@ import cn.edu.hfut.dmic.webcollector.model.Links;
 import cn.edu.hfut.dmic.webcollector.model.Page;
 import org.jsoup.nodes.Document;
 
+import java.sql.SQLException;
 import java.util.regex.Pattern;
-
-import static com.hhf.open.usims.Config.getUrls;
 
 /**
  * Created by Administrator on 2016/6/23.
  */
 public class LoaderCrawler extends BreadthCrawler {
-    public LoaderCrawler(String crawlPath, boolean autoParse) {
+
+    StorePool pool;
+    public LoaderCrawler(String[] urls, String crawlPath, boolean autoParse) throws SQLException, ClassNotFoundException {
         super(crawlPath, autoParse);
 
-        String[] urls = getUrls();
-        assertNotEmpty("Get Urls", urls);
         for(String url : urls){
-//            addRegex(url);
             addSeed(url);
+
+           /*fetch url like http://news.youdomain.com/xxxxx*/
+            this.addRegex( url +".*");
+            System.out.println("add regex " + url +".*");
+             /*do not fetch url like http://news.youdomain.com/xxxx/xxx)*/
+            this.addRegex("-" + url +"/.+/.*");
+            System.out.println("add regex  -" +  url +"/.+/.*");
         }
 
+        /*do not fetch jpg|png|gif*/
+        this.addRegex("-.*\\.(jpg|png|gif).*");
+        /*do not fetch url contains #*/
+        this.addRegex("-.*#.*");
 
+        //init database;
+        pool = new StorePool();
     }
 
-    private void assertNotEmpty(String s, String[] urls) {
-    }
 
     public void visit(Page page, Links links) {
         String url = page.getUrl();
         System.out.println("Visit:---->" + url);
-
-        Document doc = page.getDoc();
-        String content = doc.select("div[class=l-t-list]").first().html();
-//        content = content.replaceAll("<br/>","\n").replaceAll("<br />", "\n");
+        if (Pattern.matches(".*aspx", url)) {
+            Document doc = page.getDoc();
+            String content = doc.select("div[class=l-t-list]").first().html();
+        content = content.replaceAll("<br/>","\n").replaceAll("<br />", "\n");
         content = htmlRemoveTag(content);
 //        System.out.println("content:" + content);
 //        System.out.println("Visit:---------------------------------------------------------" );
+            if(!pool.isLoaded(url)) {
+                pool.setData(url, content);
+            }
+        }
+
+        long count = pool.getDataCount();
+        System.out.println("------- Visit:"  + count);
+        if(count>10000){
+            System.out.println("----------------------------- DONE ----------------------------" );
+            System.exit(0);
+        }
     }
 
-    public String htmlRemoveTag(String inputString) {
+    private String htmlRemoveTag(String inputString) {
         if (inputString == null)
             return null;
         String htmlStr = inputString; // 含html标签的字符串
