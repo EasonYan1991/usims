@@ -3,40 +3,37 @@ package com.hhf.open.usims;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.SQLException;
+import java.util.LinkedList;
+import java.util.List;
 
 /**
  * Created by Administrator on 2016/6/23.
  */
 public class ConnectionManager {
 
-    public static Connection getSingletonConnect() throws RuntimeException
-    {
-        Connection c = null;
+    static List<Connection> conns = new LinkedList<Connection>();
 
-        String driver = Config.getJDBCDriver();
-        String url = Config.getJDBCUrl();
-        String dbname = Config.getJDBCUsername();
-        String dbpass = Config.getJDBCPassword();
-        try
-        {
+    public static synchronized  Connection getConnection() throws RuntimeException, ClassNotFoundException, SQLException {
+
+        if(conns.size()==0) {
+            System.out.println("------------------------------ Create Connection ");
+            String driver = Config.getJDBCDriver();
+            String url = Config.getJDBCUrl();
             Class.forName(driver);
+            return DriverManager.getConnection(url, Config.getJDBCUsername(), Config.getJDBCPassword());
         }
-        catch (ClassNotFoundException e)
-        {
-            e.printStackTrace();
-        }
-        try
-        {
-            c = DriverManager.getConnection(url, dbname, dbpass);
-        }
-        catch (SQLException e)
-        {
-            e.printStackTrace();
-        }
-        if (c == null)
-        {
-            System.out.println("lian jie kong !");
-        }
-        return c;
+        return conns.remove(0);
+    }
+
+    public static synchronized void releaseConnection(Connection conn) throws SQLException {
+        if (conn != null)
+            {
+                if (!conn.isClosed())
+                {
+//                    c.close();
+                    conns.add(conn);
+                }
+//                c = null;
+            }
     }
 }

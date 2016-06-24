@@ -60,7 +60,10 @@ public class Config {
             String line;
             while ((line = br.readLine()) != null) {
                 // process the line.
-                urls.put(line, line);
+                line = line.trim();
+                if(line.length()>0 && !line.startsWith("#")) {
+                    urls.put(line, line);
+                }
             }
         }
 

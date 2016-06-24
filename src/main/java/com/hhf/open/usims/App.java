@@ -1,5 +1,7 @@
 package com.hhf.open.usims;
 
+import java.sql.SQLException;
+
 import static com.hhf.open.usims.Config.getUrls;
 import static com.hhf.open.usims.UsimsAssert.assertNotEmpty;
 
@@ -32,8 +34,8 @@ import static com.hhf.open.usims.UsimsAssert.assertNotEmpty;
  */
 public class App 
 {
-    public static void main( String[] args ) throws Exception {
 
+    public void run() throws Exception {
         String[] urls = getUrls();
         assertNotEmpty("Get Urls", urls);
 
@@ -44,5 +46,9 @@ public class App
         //crawler.setResumable(true);
         /*start crawl with depth of 4*/
         crawler.start(4);
+        System.out.println("------------------------------------------------------");
+    }
+    public static void main( String[] args ) throws Exception {
+        new App().run();
     }
 }

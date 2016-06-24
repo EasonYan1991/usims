@@ -1,5 +1,12 @@
 package com.hhf.open.usims;
 
+import sun.misc.IOUtils;
+
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.net.URLEncoder;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -12,65 +19,79 @@ import static com.hhf.open.usims.MD5Util.encode;
  * Created by Administrator on 2016/6/23.
  */
 public class StorePool {
-    Connection conn = null;
+
     String driver;
 
 
+    static StorePool pool;
+    private StorePool(){
 
-    public void loaded(String url) throws SQLException, ClassNotFoundException {
-            String sql = "insert usims_loaded(id, url) values(?,?)";
+    }
+
+    public static StorePool getInst(){
+        if(pool == null){
+            pool =new StorePool();
+        }
+        return pool;
+    }
+
+    public void loaded(String title, String url) throws SQLException, ClassNotFoundException {
+          String sql = "insert usims_loaded(id, title, url) values(?,?,?)";
+          String id = encode(url);
+          update(sql, new String[]{id, title, url});
+
+    }
+
+
+
+    public void setData(String title, String url, String content) throws SQLException, ClassNotFoundException {
+//        String sql = "insert usims_data(id, url, content) values(?,?,?)";
+//        String id = encode(url);
+//        update(sql, new String[]{id, url, content});
+        String fileName = getDataCount()+".md";
+        File dataDir = new File("data");
+        if(!dataDir.exists() ){
+            dataDir.mkdirs();
+        }
+
+            File file = new File(dataDir, fileName);
+            writeToFile(file, content);
+        if(!isExistData(url)) {
+            String sql = "insert usims_data(id, title, filename, url) values(?,?,?,?)";
             String id = encode(url);
-          update(sql, new String[]{id, url});
-
-    }
-
-
-
-    public void setData(String url, String content){
-        String sql = "insert usims_data(id, url, content) values(?,?,?)";
-        String id = encode(url);
-        try {
-            update(sql, new String[]{id, url, content});
-        } catch (SQLException e) {
-            e.printStackTrace();
-        } catch (ClassNotFoundException e) {
-            e.printStackTrace();
+            update(sql, new String[]{id, title, fileName, url});
         }
     }
 
-    public boolean isLoaded(String url){
+    public boolean isLoaded(String url) throws ClassNotFoundException, SQLException {
         String id = encode(url);
-        try {
-            List list = findList("select count(1) as rs from usims_loaded where id ='"+ id+"'");
-            return list !=null && list.size()>0 && (((Long)((Map)list.get(0)).get("rs"))>0);
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return false;
+        List list = findList("select count(1) as rs from usims_loaded where id ='"+ id+"'");
+        return list !=null && list.size()>0 && (((Long)((Map)list.get(0)).get("rs"))>0);
     }
 
-    public long getDataCount(){
+    public boolean isExistData(String url) throws SQLException, ClassNotFoundException {
+        String id = encode(url);
+        List  list = findList("select count(1) as rs from usims_data where id ='"+ id+"'");
+        return  list !=null && list.size()>0 && (((Long)((Map)list.get(0)).get("rs"))>0);
+    }
 
-        try {
+    public long getDataCount() throws ClassNotFoundException, SQLException {
             List list = findList("select count(1) as rs from usims_data");
             if(list !=null && list.size()>0) {
                 return ((Long) ((Map) list.get(0)).get("rs"));
             }
-        } catch (SQLException e) {
-            e.printStackTrace();
-        }
-        return -1;
+        throw new RuntimeException("get data count error");
     }
 
-    private Connection getConnection(){
-        return ConnectionManager.getSingletonConnect();
+    private Connection getConnection() throws SQLException, ClassNotFoundException {
+        return ConnectionManager.getConnection();
     }
 
     /**
      *
      * @return int
      **/
-    private int update(String sql, String[] param) throws SQLException, ClassNotFoundException {
+    public int update(String sql, String[] param) throws SQLException, ClassNotFoundException {
         int num = -1;
         Connection c = getConnection();
         PreparedStatement p = null;
@@ -102,7 +123,7 @@ public class StorePool {
      *
      * @return void
      */
-    private void closeDbAll(Connection c, PreparedStatement p, ResultSet r)
+    private void closeDbAll(Connection conn, PreparedStatement p, ResultSet r)
     {
         if (r != null)
         {
@@ -132,14 +153,15 @@ public class StorePool {
         }
         try
         {
-            if (c != null)
-            {
-                if (!c.isClosed())
-                {
-                    c.close();
-                }
-                c = null;
-            }
+//            if (c != null)
+//            {
+//                if (!c.isClosed())
+//                {
+//                    c.close();
+//                }
+//                c = null;
+//            }
+            ConnectionManager.releaseConnection(conn);
         }
         catch (Exception e)
         {
@@ -147,17 +169,18 @@ public class StorePool {
         }
     }
 
-    private List findList(String sql) throws SQLException{
+    public List findList(String sql) throws SQLException, ClassNotFoundException {
         return findList(sql,null);
     }
 
-    private List findList(String sql, Object[] values) throws SQLException {
-        PreparedStatement preparedStatement;
-        ResultSet result;
+    private List findList(String sql, Object[] values) throws SQLException, ClassNotFoundException {
+        PreparedStatement preparedStatement = null;
+        ResultSet result =null;
         List list=new ArrayList();
+        Connection connection = null;
         try{
-
-            preparedStatement = getConnection().prepareStatement(sql);
+            connection = getConnection();
+            preparedStatement = connection.prepareStatement(sql);
             setAttribute(preparedStatement, values);
             result= preparedStatement.executeQuery();
             ResultSetMetaData metadata=result.getMetaData();
@@ -171,6 +194,9 @@ public class StorePool {
             }
         }catch(SQLException e){
             throw e;
+        }
+        finally {
+            closeDbAll(connection, preparedStatement, result);
         }
         return list;
     }
@@ -188,6 +214,19 @@ public class StorePool {
                 System.out.println(values[i]);
                 preparedStatement.setObject(i+1, values[i]);
             }
+        }
+    }
+
+    private static void writeToFile(File file, String writerContent)  {
+
+        try {
+            FileWriter writer = new FileWriter(file);
+            writer.write(writerContent);
+            writer.flush();
+            writer.close();
+        }
+        catch (IOException ex){
+            ex.printStackTrace();
         }
     }
 }

@@ -1,15 +1,16 @@
 package com.hhf.open.usims;
 
-import cn.edu.hfut.dmic.webcollector.crawler.BreadthCrawler;
-import cn.edu.hfut.dmic.webcollector.model.Links;
+import cn.edu.hfut.dmic.webcollector.model.CrawlDatums;
 import cn.edu.hfut.dmic.webcollector.model.Page;
+import cn.edu.hfut.dmic.webcollector.plugin.berkeley.BreadthCrawler;
 import org.jsoup.nodes.Document;
-import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -18,19 +19,30 @@ import java.util.regex.Pattern;
  */
 public class LoaderCrawler extends BreadthCrawler {
 
-    StorePool pool;
+    StorePool store;
+    String[] orginUrls;
+   static Set<String> urlsSet = new HashSet<String>();
     public LoaderCrawler(String[] urls, String crawlPath, boolean autoParse) throws SQLException, ClassNotFoundException {
         super(crawlPath, autoParse);
 
-        for(String url : urls){
-            addSeed(url);
 
-           /*fetch url like http://news.youdomain.com/xxxxx*/
-            this.addRegex( url +".*");
-            System.out.println("add regex " + url +".*");
-             /*do not fetch url like http://news.youdomain.com/xxxx/xxx)*/
-            this.addRegex("-" + url +"/.+/.*");
-            System.out.println("add regex  -" +  url +"/.+/.*");
+        orginUrls = urls;
+        //init database;
+        store = StorePool.getInst();
+
+        for(String url : urls){
+            if(!store.isLoaded(url)) {
+                addSeed(url);
+
+               /*fetch url like http://news.youdomain.com/xxxxx*/
+              this.addRegex(url + ".*");
+
+              System.out.println("add regex " + url + ".*");
+              /*do not fetch url like http://news.youdomain.com/xxxx/xxx)*/
+
+//              this.addRegex("-" + url + "/.+/.*");
+//              System.out.println("add regex  -" + url + "/.+/.*");
+            }
         }
 
         /*do not fetch jpg|png|gif*/
@@ -38,20 +50,21 @@ public class LoaderCrawler extends BreadthCrawler {
         /*do not fetch url contains #*/
         this.addRegex("-.*#.*");
 
-        //init database;
-        pool = new StorePool();
     }
 
 
-    public void visit(Page page, Links links) {
+    public void visit(Page page, CrawlDatums next) {
         String url = page.getUrl();
         try {
-            pool.loaded(url);
+            if(store.isLoaded(url)) {
+                return;
+            }
+            Document doc = page.getDoc();
 
             System.out.println("Visit:---->" + url);
 
             if (Pattern.matches(".*aspx", url)) {
-                Document doc = page.getDoc();
+
                 Elements el = doc.select("div[class=l-t-list]");
                 if(el!=null && el.size()>0)
                 {
@@ -59,13 +72,13 @@ public class LoaderCrawler extends BreadthCrawler {
                     content = content.replaceAll("<br/>", "\n").replaceAll("<br />", "\n");
                     content = htmlRemoveTag(content);
 //        System.out.println("content:" + content);
-                    if (!pool.isLoaded(url)) {
-                        pool.setData(url, content);
+                    if (!store.isLoaded(url)) {
+                        store.setData(doc.title(), url, content);
                     }
                 }
             }
 
-            long count = pool.getDataCount();
+            long count = store.getDataCount();
             System.out.println("------- Visit:"  + count);
             if(count>10000){
                 System.out.println("----------------------------- DONE ----------------------------" );
@@ -78,10 +91,20 @@ public class LoaderCrawler extends BreadthCrawler {
             List<String> urls = find(text);
             if(urls.size()>0){
                 for(String u : urls){
-                    if(!pool.isLoaded(u)) {
-                        links.add(u);
+                    synchronized (urlsSet) {
+
+                        if (!urlsSet.contains(u) && !store.isLoaded(u)){
+                            System.out.println("==== add url:" + u);
+                            urlsSet.add(u);
+                            next.add(u);
+                        }
+
                     }
                 }
+            }
+
+            if(!store.isLoaded(url)) {
+                store.loaded(doc.title(), url);
             }
 
         } catch (SQLException e) {
@@ -127,6 +150,7 @@ public class LoaderCrawler extends BreadthCrawler {
     }
 
     public List<String> find(String text){
+
         List list = new ArrayList();
 //        String pattern= "^http\:\/\/.+$";
         String pattern = "http.*aspx";
@@ -138,7 +162,58 @@ public class LoaderCrawler extends BreadthCrawler {
            // System.out.println("url="+s);
             list.add(s);
         }
+        pattern = "href=\"(.*?)\"";
+        p = Pattern.compile(pattern);
+        m = p.matcher(text);
+        while(m.find()) {
+             s = m.group(1);
+            //System.out.println("url="+s);
+             for(String u : orginUrls){
+                 String path = getPath(u);
+                 if(s.contains(path) && !s.equals(path)){
+                     if(s.startsWith("/")){
+                         String b = getBasePath(u) + s;
+                         list.add(b);
+                     }
+
+                 }
+             }
+
+        }
         return list;
     }
+
+
+    /**
+     * url ： regexpqyfkh_left$& ' ].
+     protocol:RegExp.$2,
+     host:RegExp.$3,
+     path:RegExp.$4,
+     file:RegExp.$6,
+     query:RegExp.$7,
+     hash:RegExp.$8
+     * @param url
+     * @return
+     */
+    private String getPath(String url){
+        String pattern = "((http[s]?|ftp):\\/)?\\/?([^:\\/\\s]+)((\\/\\w+)*\\/)([\\w\\-\\.]+[^#?\\s]+)(.*)?(#[\\w\\-]+)?$";
+        Pattern p = Pattern.compile(pattern);
+        Matcher m = p.matcher(url);
+        if(m.find()){
+            return m.group(4);
+        }
+        return null;
+    }
+
+    private String getBasePath(String url){
+        String pattern = "((http[s]?|ftp):\\/)?\\/?([^:\\/\\s]+)((\\/\\w+)*\\/)([\\w\\-\\.]+[^#?\\s]+)(.*)?(#[\\w\\-]+)?$";
+        Pattern p = Pattern.compile(pattern);
+        Matcher m = p.matcher(url);
+        if(m.find()){
+            return m.group(2) + "://" + m.group(3) ;
+        }
+        return null;
+    }
+
 }
 
