@@ -22,29 +22,34 @@ public class LoaderCrawler extends BreadthCrawler {
     StorePool store;
     String[] orginUrls;
    static Set<String> urlsSet = new HashSet<String>();
-    public LoaderCrawler(String[] urls, String crawlPath, boolean autoParse) throws SQLException, ClassNotFoundException {
+
+    public LoaderCrawler(String crawlPath, boolean autoParse){
         super(crawlPath, autoParse);
 
+    }
+    public LoaderCrawler(String[] urls, String crawlPath, boolean autoParse) throws SQLException, ClassNotFoundException {
+        this(crawlPath, autoParse);
 
         orginUrls = urls;
         //init database;
         store = StorePool.getInst();
 
-        for(String url : urls){
-            if(!store.isLoaded(url)) {
-                addSeed(url);
+        if(orginUrls!=null) {
+            for (String url : urls) {
+                if (!store.isLoaded(url)) {
+                    addSeed(url);
 
                /*fetch url like http://news.youdomain.com/xxxxx*/
-              this.addRegex(url + ".*");
+                    this.addRegex(url + ".*");
 
-              System.out.println("add regex " + url + ".*");
+                    System.out.println("add regex " + url + ".*");
               /*do not fetch url like http://news.youdomain.com/xxxx/xxx)*/
 
 //              this.addRegex("-" + url + "/.+/.*");
 //              System.out.println("add regex  -" + url + "/.+/.*");
+                }
             }
         }
-
         /*do not fetch jpg|png|gif*/
         this.addRegex("-.*\\.(jpg|png|gif).*");
         /*do not fetch url contains #*/
@@ -60,6 +65,10 @@ public class LoaderCrawler extends BreadthCrawler {
                 return;
             }
             Document doc = page.getDoc();
+            if(!store.isLoaded(url)) {
+                store.loaded(doc.title(), url);
+            }
+
 
             System.out.println("Visit:---->" + url);
 
@@ -72,7 +81,7 @@ public class LoaderCrawler extends BreadthCrawler {
                     content = content.replaceAll("<br/>", "\n").replaceAll("<br />", "\n");
                     content = htmlRemoveTag(content);
 //        System.out.println("content:" + content);
-                    if (!store.isLoaded(url)) {
+                    if (!store.isExistData(url)) {
                         store.setData(doc.title(), url, content);
                     }
                 }
@@ -81,15 +90,18 @@ public class LoaderCrawler extends BreadthCrawler {
             long count = store.getDataCount();
             System.out.println("------- Visit:"  + count);
             if(count>10000){
-                System.out.println("----------------------------- DONE ----------------------------" );
+                System.out.println("----------------------------- ALL  DONE ----------------------------" );
                 System.exit(0);
             }
 
 
             String text = page.getDoc().select("a").toString();
             //System.out.println(text);
-            List<String> urls = find(text);
-            if(urls.size()>0){
+            List<String> urls = null;
+            if(orginUrls!=null) {
+                urls = find(orginUrls, text);
+            }
+            if(urls!= null && urls.size()>0){
                 for(String u : urls){
                     synchronized (urlsSet) {
 
@@ -103,9 +115,7 @@ public class LoaderCrawler extends BreadthCrawler {
                 }
             }
 
-            if(!store.isLoaded(url)) {
-                store.loaded(doc.title(), url);
-            }
+
 
         } catch (SQLException e) {
             e.printStackTrace();
@@ -113,6 +123,9 @@ public class LoaderCrawler extends BreadthCrawler {
         } catch (ClassNotFoundException e) {
             e.printStackTrace();
             System.exit(-1);
+        }
+        catch (Exception ex){
+            ex.printStackTrace();
         }
     }
 
@@ -149,7 +162,7 @@ public class LoaderCrawler extends BreadthCrawler {
         return textStr;// 返回文本字符串
     }
 
-    public List<String> find(String text){
+    public List<String> find(String[] loadedUrls, String text){
 
         List list = new ArrayList();
 //        String pattern= "^http\:\/\/.+$";
@@ -168,7 +181,7 @@ public class LoaderCrawler extends BreadthCrawler {
         while(m.find()) {
              s = m.group(1);
             //System.out.println("url="+s);
-             for(String u : orginUrls){
+             for(String u : loadedUrls){
                  String path = getPath(u);
                  if(s.contains(path) && !s.equals(path)){
                      if(s.startsWith("/")){
