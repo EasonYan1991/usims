@@ -44,22 +44,35 @@ public class StorePool {
 
 
 
-    public void setData(String title, String url, String content) throws SQLException, ClassNotFoundException {
-//        String sql = "insert usims_data(id, url, content) values(?,?,?)";
-//        String id = encode(url);
-//        update(sql, new String[]{id, url, content});
-        String fileName = getDataCount()+".md";
-        File dataDir = new File("data");
-        if(!dataDir.exists() ){
-            dataDir.mkdirs();
-        }
 
-            File file = new File(dataDir, fileName);
-            writeToFile(file, content);
+    public void setData(String title, String url, String content) throws SQLException, ClassNotFoundException {
+
         if(!isExistData(url)) {
+    //        String sql = "insert usims_data(id, url, content) values(?,?,?)";
+    //        String id = encode(url);
+    //        update(sql, new String[]{id, url, content});
+
+            File dataDir = new File("data");
+            if(!dataDir.exists() ){
+                dataDir.mkdirs();
+            }
+
+            File file ;
+            int maxId= 1;
+            String fileName = maxId+".md";
+            file = new File(dataDir, fileName);
+            while(file.exists()){
+                maxId++;
+                fileName = maxId+".md";
+                file = new File(dataDir, fileName);
+            }
+
+
+            writeToFile(file, content);
+
             String sql = "insert usims_data(id, title, filename, url) values(?,?,?,?)";
             String id = encode(url);
-            update(sql, new String[]{id, title, fileName, url});
+            update(sql, new String[]{id, title, maxId+"", url});
         }
     }
 
