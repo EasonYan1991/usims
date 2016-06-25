@@ -16,7 +16,15 @@ public class UsimsAssert {
         }
     };
 
-    public static void assertNotEmpty(String msg, String[] vals){
+    public static void assertArrayNotEmpty(String msg, String[] vals){
         assertTrue(msg, vals!=null && vals.length>0);
-    };
+    }
+
+    public static void assertNotEmpty(String msg, String val){
+        assertTrue(msg, val!=null && val.length()>0);
+    }
+
+    public static void assertNotNull(String msg, Object val){
+        assertTrue(msg, val!=null);
+    }
 }

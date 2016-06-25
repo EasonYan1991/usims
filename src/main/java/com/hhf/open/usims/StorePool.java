@@ -1,12 +1,6 @@
 package com.hhf.open.usims;
 
-import sun.misc.IOUtils;
-
-import java.io.File;
-import java.io.FileWriter;
-import java.io.IOException;
-import java.io.UnsupportedEncodingException;
-import java.net.URLEncoder;
+import java.io.*;
 import java.sql.*;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -47,7 +41,7 @@ public class StorePool {
 
     public void setData(String title, String url, String content) throws SQLException, ClassNotFoundException {
 
-        if(!isExistData(url)) {
+        if(!existByUrl(url)) {
     //        String sql = "insert usims_data(id, url, content) values(?,?,?)";
     //        String id = encode(url);
     //        update(sql, new String[]{id, url, content});
@@ -76,16 +70,44 @@ public class StorePool {
         }
     }
 
+    public boolean existByFileName(String fileName) throws SQLException, ClassNotFoundException {
+        List list = findList("select count(1) as rs from usims_data where filename ='"+ fileName+"'");
+        return list !=null && list.size()>0 && (((Long)((Map)list.get(0)).get("rs"))>0);
+    }
+
+    public Map getByFileName(String fileName)throws SQLException, ClassNotFoundException {
+        List<Map> list = findList("select * from usims_data where filename ='"+ fileName+"'");
+        if( list !=null && list.size()>0)
+        {
+            return list.get(0);
+        }
+        return null;
+    }
+
+    public String getContentByFileName(String fileName) throws IOException {
+        File dataDir = new File("data");
+        File file = new File(dataDir, fileName);
+        if (!file.exists()) {
+            throw new RuntimeException("-----Not found file  " + fileName);
+        }
+        return  FileUtil.readFile(file);
+    }
+
+
     public boolean isLoaded(String url) throws ClassNotFoundException, SQLException {
         String id = encode(url);
         List list = findList("select count(1) as rs from usims_loaded where id ='"+ id+"'");
         return list !=null && list.size()>0 && (((Long)((Map)list.get(0)).get("rs"))>0);
     }
 
-    public boolean isExistData(String url) throws SQLException, ClassNotFoundException {
+    public boolean existByUrl(String url) throws SQLException, ClassNotFoundException {
         String id = encode(url);
         List  list = findList("select count(1) as rs from usims_data where id ='"+ id+"'");
         return  list !=null && list.size()>0 && (((Long)((Map)list.get(0)).get("rs"))>0);
+    }
+
+    public int getFileCount(){
+        return  new File("data").listFiles().length;
     }
 
     public long getDataCount() throws ClassNotFoundException, SQLException {
