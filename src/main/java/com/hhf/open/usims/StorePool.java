@@ -75,6 +75,15 @@ public class StorePool {
         return list !=null && list.size()>0 && (((Long)((Map)list.get(0)).get("rs"))>0);
     }
 
+    public Map getBySn(int sn)throws SQLException, ClassNotFoundException {
+        List<Map> list = findList("select * from usims_data where sn="+ sn );
+        if( list !=null && list.size()>0)
+        {
+            return list.get(0);
+        }
+        return null;
+    }
+
     public Map getByFileName(String fileName)throws SQLException, ClassNotFoundException {
         List<Map> list = findList("select * from usims_data where filename ='"+ fileName+"'");
         if( list !=null && list.size()>0)

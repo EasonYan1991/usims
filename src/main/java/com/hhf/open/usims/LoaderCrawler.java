@@ -81,7 +81,7 @@ public class LoaderCrawler extends BreadthCrawler {
                     content = content.replaceAll("<br/>", "\n").replaceAll("<br />", "\n");
                     content = htmlRemoveTag(content);
 //        System.out.println("content:" + content);
-                    if (!store.isExistData(url)) {
+                    if (!store.existByUrl(url)) {
                         store.setData(doc.title(), url, content);
                     }
                 }

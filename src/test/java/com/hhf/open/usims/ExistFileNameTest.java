@@ -23,58 +23,79 @@ public class ExistFileNameTest {
 
         StorePool sp = StorePool.getInst();
 
-        List<Map> emptyData = sp.findList("select * from usims_data where title = '' ");
-
-
-        for(int i=1; i<emptyData.size(); i++){
-            String url = (String) emptyData.get(i).get("url");
-            String id =  (String) emptyData.get(i).get("id");
-            System.out.println("----" + url);
-            Document doc =  Jsoup.connect(url).get();
-            System.out.println(i + "/" + emptyData.size() + "----" + doc.title());
-            if("".equals(doc.title())){
-                    sp.update("delete from usims_data where id=?", new String[]{id});
-            }
-            else{
-                sp.update("update usims_data set title=? where id = ?" , new String[]{doc.title(), id });
-            }
-
-        }
+//        List<Map> emptyData = sp.findList("select * from usims_data where title = '' ");
+//
+//
+//        for(int i=1; i<emptyData.size(); i++){
+//            String url = (String) emptyData.get(i).get("url");
+//            String id =  (String) emptyData.get(i).get("id");
+//            System.out.println("----" + url);
+//            Document doc =  Jsoup.connect(url).get();
+//            System.out.println(i + "/" + emptyData.size() + "----" + doc.title());
+//            if("".equals(doc.title())){
+//                    sp.update("delete from usims_data where id=?", new String[]{id});
+//            }
+//            else{
+//                sp.update("update usims_data set title=? where id = ?" , new String[]{doc.title(), id });
+//            }
+//
+//        }
 
 
         String content;
 
         String fileName;
-       emptyData = sp.findList("select * from usims_data where content is null");
+//       emptyData = sp.findList("select * from usims_data order by sn");
         Map map ;
         String title;
         String id;
         int MAX;
         int sn;
-        MAX = emptyData.size();
-        for(int i=1;i<=emptyData.size(); i++){
+//        MAX = emptyData.size();
+        File dataDir = new File("data");
+        File[] oldFile = dataDir.listFiles();
+        String newFileName;
+        String url;
+        Document doc;
+        for(int i=1;i<=oldFile.length; i++){
 
-            map = emptyData.get(i);
-
-            fileName = (String) map.get("filename");
-            title = (String)map.get("title");
-            id =  (String) map.get("id");
-            sn = (Integer)map.get("sn");
-            assertNotEmpty("id is empty ---->" + i, id);
-
-            File dataDir = new File("data");
-            File file = new File(dataDir,  fileName + ".md");
-            System.out.println("---->" + i + "/" + MAX  + " " + id);
-            String newFileName;
-            if(file.exists()){
-                content = sp.getContentByFileName(fileName+".md");
-                sp.update("update usims_data set content=? where id = ?" , new String[]{content, id });
-                newFileName = sn + "_" + title + ".txt";
-                File newFile = new File(dataDir, newFileName);
-                assertTrue("rename " , file.renameTo(newFile));
+            File file = oldFile[i-1];
+            if(!isNumber(file.getName())){
+                continue;
             }
+            sn = getSn(file.getName());
+            map = sp.getBySn(sn);
+
+            content = FileUtil.readFile(file);
+            id = (String) map.get("id");
+
+            url = (String)map.get("url");
+
+            System.out.println(" ----> " + url);
+            try {
+                doc = Jsoup.connect(url).get();
+                title = doc.title();
+                newFileName = sn + "_" + title.replaceAll("/", "") + ".txt";
+
+                System.out.println(i + "   "  +  file.getName() + " -> " + newFileName + " " + id + " " + url);
+                assertTrue(file.getName() + " -> " + newFileName, file.renameTo(new File(dataDir, newFileName)));
+                sp.update("update usims_data set filename=?, status=2, content=? where id=?", new String[]{newFileName, content, id});
+            }
+            catch (Exception ex){
+                ex.printStackTrace();
+            }
+
 
         }
 
+    }
+
+    boolean isNumber(String fileName){
+        boolean is = fileName.contains(".md");
+        return is;
+    }
+
+    int getSn(String fileName){
+        return  Integer.valueOf(fileName.substring(0, fileName.indexOf(".md")));
     }
 }
